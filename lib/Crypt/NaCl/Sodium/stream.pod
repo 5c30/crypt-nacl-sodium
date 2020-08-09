@@ -1,5 +1,8 @@
-# PODNAME: Crypt::NaCl::Sodium::stream
-# ABSTRACT: Stream ciphers (XSalsa20, ChaCha20, Salsa20, AES-128-CTR)
+=encoding utf8
+
+=head1 NAME
+
+Crypt::NaCl::Sodium::stream - Stream Ciphers
 
 =head1 SYNOPSIS
 
@@ -665,5 +668,15 @@ key-derivation functions.
 
 =back
 
-=cut
+=head1 AUTHOR
 
+Alex J. G. Burzyński <F<ajgb@cpan.org>>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright (c) 2015 Alex J. G. Burzyński. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+=cut

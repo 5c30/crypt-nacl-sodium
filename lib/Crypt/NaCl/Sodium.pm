@@ -1,16 +1,16 @@
+package Crypt::NaCl::Sodium;
+
+our $VERSION = '2.000';
+our $XS_VERSION = $VERSION;
+
 use strict;
 use warnings;
-
-#ABSTRACT: NaCl compatible modern, easy-to-use library for  encryption, decryption, signatures, password hashing and more
-package Crypt::NaCl::Sodium;
 
 use Carp qw( croak );
 use Sub::Exporter;
 
 require XSLoader;
-XSLoader::load('Crypt::NaCl::Sodium', $Crypt::NaCl::Sodium::{VERSION} ?
-        ${ $Crypt::NaCl::Sodium::{VERSION} } : ()
-    );
+XSLoader::load('Crypt::NaCl::Sodium', $XS_VERSION);
 
 my @funcs = qw(
     bin2hex hex2bin
@@ -162,6 +162,12 @@ sub new { return bless {}, __PACKAGE__ }
 1;
 
 __END__
+
+=encoding utf8
+
+=head1 NAME
+
+Crypt::NaCl::Sodium - NaCl compatible modern, easy-to-use library for encryption, decryption, signatures, password hashing and more
 
 =head1 SYNOPSIS
 
@@ -522,5 +528,16 @@ L<Data::BytesLocker/"unlock"> before accessing.
 
 =back
 
-=cut
+=head1 AUTHOR
 
+Alex J. G. Burzyński <F<ajgb@cpan.org>>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright (c) 2015 Alex J. G. Burzyński. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+
+=cut
