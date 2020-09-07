@@ -729,6 +729,17 @@ BOOT:
 PROTOTYPES: ENABLE
 
 void
+has_aes128ctr()
+    PPCODE:
+    {
+#ifdef AES128CTR_IS_AVAILABLE
+    XSRETURN_YES;
+#else
+    XSRETURN_NO;
+#endif
+    }
+
+void
 memcmp(left, right, length = 0)
     SV * left
     SV * right
@@ -4535,16 +4546,22 @@ SALSA20_KEYBYTES(...)
 unsigned int
 AES128CTR_NONCEBYTES(...)
     CODE:
-        RETVAL = 0;
-        croak("aes128ctr has been removed from upstream");
+#ifdef AES128CTR_IS_AVAILABLE
+        RETVAL = crypto_stream_aes128ctr_NONCEBYTES;
+#else
+        croak("AES128CTR is only available in libsodium v1.0.14 and below");
+#endif
     OUTPUT:
         RETVAL
 
 unsigned int
 AES128CTR_KEYBYTES(...)
     CODE:
-        RETVAL = 0;
-        croak("aes128ctr has been removed from upstream");
+#ifdef AES128CTR_IS_AVAILABLE
+        RETVAL = crypto_stream_aes128ctr_KEYBYTES;
+#else
+        croak("AES128CTR is only available in libsodium v1.0.14 and below");
+#endif
     OUTPUT:
         RETVAL
 
@@ -4572,7 +4589,11 @@ keygen(self)
                 key_size = crypto_stream_salsa20_KEYBYTES;
                 break;
             case 3:
-                croak("aes128ctr has been removed from upstream");
+#ifdef AES128CTR_IS_AVAILABLE
+                key_size = crypto_stream_aes128ctr_KEYBYTES;
+#else
+                croak("AES128CTR is only available in libsodium v1.0.14 and below");
+#endif
                 break;
             default:
                 key_size = crypto_stream_KEYBYTES;
@@ -4607,7 +4628,11 @@ nonce(self, ...)
                 nonce_size = crypto_stream_salsa20_NONCEBYTES;
                 break;
             case 3:
-                croak("aes128ctr has been removed from upstream");
+#ifdef AES128CTR_IS_AVAILABLE
+                nonce_size = crypto_stream_aes128ctr_NONCEBYTES;
+#else
+                croak("AES128CTR is only available in libsodium v1.0.14 and below");
+#endif
                 break;
             case 4:
                 nonce_size = crypto_stream_chacha20_IETF_NONCEBYTES;
@@ -4689,7 +4714,13 @@ bytes(self, length, nonce, key)
                 bytes_function = &crypto_stream_salsa20;
                 break;
             case 3:
-                croak("aes128ctr has been removed from upstream");
+#ifdef AES128CTR_IS_AVAILABLE
+                nonce_size = crypto_stream_aes128ctr_NONCEBYTES;
+                key_size = crypto_stream_aes128ctr_KEYBYTES;
+                bytes_function = &crypto_stream_aes128ctr;
+#else
+                croak("AES128CTR is only available in libsodium v1.0.14 and below");
+#endif
                 break;
             case 4:
                 nonce_size = crypto_stream_salsa20_NONCEBYTES;
@@ -4697,7 +4728,9 @@ bytes(self, length, nonce, key)
                 bytes_function = &crypto_stream_salsa2012;
                 break;
             case 5:
-                croak("salsa208 has been deprecated upstream");
+                nonce_size = crypto_stream_salsa20_NONCEBYTES;
+                key_size = crypto_stream_salsa20_KEYBYTES;
+                bytes_function = &crypto_stream_salsa208;
                 break;
             case 6:
                 nonce_size = crypto_stream_chacha20_IETF_NONCEBYTES;
@@ -4775,7 +4808,13 @@ xor(self, msg, nonce, key)
                 xor_function = &crypto_stream_salsa20_xor;
                 break;
             case 3:
-                croak("aes128ctr has been removed from upstream");
+#ifdef AES128CTR_IS_AVAILABLE
+                nonce_size = crypto_stream_aes128ctr_NONCEBYTES;
+                key_size = crypto_stream_aes128ctr_KEYBYTES;
+                xor_function = &crypto_stream_aes128ctr_xor;
+#else
+croak("AES128CTR is only available in libsodium v1.0.14 and below");
+#endif
                 break;
             case 4:
                 nonce_size = crypto_stream_salsa20_NONCEBYTES;
@@ -4783,7 +4822,9 @@ xor(self, msg, nonce, key)
                 xor_function = &crypto_stream_salsa2012_xor;
                 break;
             case 5:
-                croak("salsa208 has been deprecated upstream");
+                nonce_size = crypto_stream_salsa20_NONCEBYTES;
+                key_size = crypto_stream_salsa20_KEYBYTES;
+                xor_function = &crypto_stream_salsa208_xor;
                 break;
             case 6:
                 nonce_size = crypto_stream_chacha20_IETF_NONCEBYTES;
