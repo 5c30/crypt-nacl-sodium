@@ -1,11 +1,13 @@
 
 use strict;
 use warnings;
+
+use Cwd ();
+use File::Basename ();
+use File::Spec ();
 use Test::More;
 
-
 use Crypt::NaCl::Sodium qw(:utils);
-
 
 my $crypto_sign = Crypt::NaCl::Sodium->sign();
 
@@ -126,9 +128,11 @@ sub add_l {
 }
 
 sub getTestData {
-    open(TEST, "t/sodium_sign.dat") or die "Cannot open test data file: $!";
+    my $dir = File::Basename::dirname(Cwd::abs_path __FILE__);
+    my $file = File::Spec->catfile($dir, 'sodium_sign.dat');
+    open(my $fh, '<', $file) or die "Cannot open test data file: $!";
     my @tests;
-    while (my $line = <TEST>) {
+    while (my $line = <$fh>) {
         my ($sk, $pk, $sig, $msg)
         = $line =~ /\[\[([^\]]+)\]\[([^\]]+)\]\[([^\]]+)\]"([^"]*)"\]/;
 
@@ -142,4 +146,3 @@ sub getTestData {
 
     return @tests;
 }
-

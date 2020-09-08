@@ -93,4 +93,33 @@ my $msg = "Secret message";
     is($decrypted_msg->to_hex, bin2hex($msg), "msg decrypted");
 }
 
+SKIP: {
+    skip "aes128ctr is not available on this version", 3 unless Crypt::NaCl::Sodium::has_aes128ctr();
+    ## AES-128-CTR
+    ########
+
+    my ($key, $nonce, $random_bytes, $secret, $decrypted_msg);
+
+    # generate secret key
+    $key = '1' x $crypto_stream->AES128CTR_KEYBYTES;
+
+    # generate nonce
+    $nonce = '1' x $crypto_stream->AES128CTR_NONCEBYTES;
+
+    # generate 256 bytes from $nonce and $key
+    $random_bytes = $crypto_stream->aes128ctr_bytes( 256, $nonce, $key );
+    is($random_bytes->to_hex,
+        "ad0110483d0559d12e8cb97203e6c9083bb4e887d0c49ba742115543f30cd22521ea9f2b57c22fb50013e28fa0d7df2258b77feb379e5f7ae02534a14665e6cd6669237c67743c3295fe566b0ba1b23eb9ba12bbdf3ef56b871daa7cb0e7d60c14a1dda08fe9034a876454f994823968bfe4a8d05b8286e7deb9bf3146e30c2a2fc1051db5bdf17dc39af8c14fc23988fcb2b7fd9d7b1c22cc1eab365120248bc653947bf8b62501044ed75148dfb77cd1ee405ee2cbbf5beeaf147cfb8e0dd484cd298676d1fd64f67980441cbab86a7f335c84bb49bda96e0a48d62bb1639e7d21a2730f1ef35578aa43398441e61b800b6ff1314f2aaa376520d06bcccf5b",
+        "random_bytes");
+
+    # encrypt
+    $secret = $crypto_stream->aes128ctr_xor($msg, $nonce, $key);
+    ok($secret, "msg encrypted");
+
+    # decrypt
+    $decrypted_msg = $crypto_stream->aes128ctr_xor($secret, $nonce, $key);
+    is($decrypted_msg->to_hex, bin2hex($msg), "msg decrypted");
+}
+
+
 done_testing();

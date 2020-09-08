@@ -15,7 +15,7 @@ sub has_aes256gcm {
 sub has_aes128ctr {
     return check_lib(
         debug => 0,
-        function => 'return crypto_stream_aes128ctr_NONCEBYTES;',
+        function => 'sodium_init(); return crypto_stream_aes128ctr_NONCEBYTES ? 0 : 1;',
         LIBS => Alien::Sodium->libs,
         ccflags => Alien::Sodium->cflags(),
         header => 'sodium.h',

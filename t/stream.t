@@ -10,7 +10,7 @@ my $crypto_stream = Crypt::NaCl::Sodium->stream();
 
 ok($crypto_stream->$_ > 0, "$_ > 0")
     for qw( NONCEBYTES KEYBYTES CHACHA20_NONCEBYTES CHACHA20_KEYBYTES
-    SALSA20_NONCEBYTES SALSA20_KEYBYTES );
+    SALSA20_NONCEBYTES SALSA20_KEYBYTES AES128CTR_NONCEBYTES AES128CTR_KEYBYTES  );
 
 my %tests = (
     'XSalsa20' => {
@@ -27,6 +27,10 @@ my %tests = (
         method_prefix => 'salsa20_',
         const_prefix => 'SALSA20_',
         has_xor_ic => 1,
+    },
+    'AES-128-CTR' => {
+        method_prefix => 'aes128ctr_',
+        const_prefix => 'AES128CTR_',
     },
 );
 
