@@ -22,6 +22,14 @@ on 'build' => sub {
 };
 
 on 'test' => sub {
+    requires 'strict';
+    requires 'warnings';
+    requires 'utf8';
+    requires 'Config';
+    requires 'Cwd';
+    requires 'Devel::Peek';
+    requires 'File::Basename';
+    requires 'File::Spec';
     requires 'Test::More' => '0.88';
 };
 

@@ -728,6 +728,9 @@ BOOT:
 
 PROTOTYPES: ENABLE
 
+const char *
+sodium_version_string()
+
 void
 has_aes128ctr()
     PPCODE:
