@@ -1016,7 +1016,7 @@ hex2bin(hex_sv, ...)
         memset(bin, '\0', bin_max_len + 1);
 
         sodium_hex2bin(bin, bin_max_len + 1, hex, hex_len, ignore, &bin_len, NULL);
-        RETVAL = newSVpvn((const char * const)bin, bin_max_len);
+        RETVAL = newSVpvn((const char * const)bin, bin_max_len < bin_len ? bin_max_len : bin_len);
     OUTPUT:
         RETVAL
     CLEANUP:
