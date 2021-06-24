@@ -1,5 +1,6 @@
 
 #define PERL_NO_GET_CONTEXT
+#define NO_XSLOCKS
 
 #include "EXTERN.h"
 #include "perl.h"
@@ -731,6 +732,40 @@ PROTOTYPES: ENABLE
 const char *
 sodium_version_string()
 
+SV *
+add(left, right)
+    SV * left
+    SV * right
+    PREINIT:
+        unsigned char * copy;
+    INIT:
+        unsigned char * left_buf;
+        unsigned char * right_buf;
+        STRLEN copy_len;
+        STRLEN left_len;
+        STRLEN right_len;
+    CODE:
+    {
+        left_buf = (unsigned char *)SvPV(left, left_len);
+        right_buf = (unsigned char *)SvPV(right, right_len);
+        if (right_len > left_len) {
+            croak("You must have a RHS less than or equal in length to the LHS");
+        }
+        copy = sodium_malloc(left_len + 1);
+        if (copy == NULL) {
+            croak("Could not allocate memory");
+        }
+
+        strcpy(copy, left_buf);
+
+        sodium_add(copy, right_buf, right_len);
+        RETVAL = newSVpvn((const char * const)copy, left_len);
+    }
+    OUTPUT:
+        RETVAL
+    CLEANUP:
+        sodium_free(copy);
+
 void
 has_aes128ctr()
     PPCODE:
@@ -922,53 +957,70 @@ SV *
 hex2bin(hex_sv, ...)
     SV * hex_sv
     PREINIT:
-        char * hex;
-        unsigned char * bin;
-        size_t hex_len;
-        size_t bin_len;
+        size_t hex_len = 0;
+        size_t bin_len = 0;
         size_t bin_max_len = 0;
+        int i = 0;
+        STRLEN keylen = 0;
+        char * hex = NULL;
         char * ignore = NULL;
+        char * key = NULL;
+        unsigned char * bin = NULL;
+        /* idiot check our hex string and turn it into a C string */
+        if (SvOK(hex_sv) && SvPOK(hex_sv)) {
+            hex = SvPV(hex_sv, hex_len);
+            if (hex_len == 0) {
+                XSRETURN_PV("");
+            }
+        } else {
+            croak("A hex string must be provided");
+        }
     CODE:
-        hex = SvPV(hex_sv, hex_len);
-
-        if ( items > 1 && (items + 1) % 2 != 0 ) {
-            croak("Invalid number of arguments");
-        } else if ( items > 1 ) {
-            int i = 0;
-            STRLEN keylen = 0;
-            char * key;
-
-            for ( i = 1; i < items; i += 2 ) {
+        if (items > 1) {
+            if ((items + 1) % 2 != 0) {
+                croak("Invalid number of arguments");
+            }
+            for (i = 1; i < items; i += 2) {
+                if (!SvOK(ST(i)) || !SvPOK(ST(i)))
+                    continue;
                 key = SvPV(ST(i), keylen);
-                if ( keylen == 6 && strnEQ(key, "ignore", 6) ) {
-                    ignore = SvPV_nolen(ST(i+1));
-                } else if ( keylen == 7 && strnEQ(key, "max_len", 7) ) {
-                    bin_max_len = SvUV(ST(i+1));
-                    if ( bin_max_len <= 0 ) {
-                        croak("Invalid value for max_len: %ld", (long)bin_max_len);
+                if (keylen == 6 && strnEQ(key, "ignore", 6)) {
+                    if (SvOK(ST(i + 1)) && SvPOK(ST(i + 1))) {
+                        ignore = SvPV(ST(i + 1), keylen);
+                        if (keylen < 1 && ignore != NULL) {
+                            ignore = NULL;
+                        }
                     }
-                } else {
-                    croak("Invalid argument: %s", key);
+                } else if (keylen == 7 && strnEQ(key, "max_len", 7)) {
+                    if (SvOK(ST(i + 1)) && SvIOKp(ST(i + 1))) {
+                        bin_max_len = SvUV(ST(i + 1));
+                    }
+                    else {
+                        croak("Invalid max_len. Must be an integer > 0.");
+                    }
                 }
             }
         }
-        if ( bin_max_len == 0 ) {
-            if ( ignore == NULL ) {
+        if (bin_max_len == 0) {
+            bin_max_len = hex_len;
+            if (ignore == NULL) {
                 bin_max_len = hex_len / 2;
-            } else {
-                bin_max_len = hex_len;
             }
         }
-        bin = sodium_malloc( bin_max_len + 1 );
-        if ( bin == NULL ) {
+
+        /* ensure our binary string has enough space */
+        bin = (unsigned char *) malloc(bin_max_len + 1);
+        if (bin == NULL) {
             croak("Could not allocate memory");
         }
-        sodium_hex2bin(bin, bin_max_len, hex, hex_len, ignore, &bin_len, NULL);
-        RETVAL = newSVpvn((const char * const)bin, bin_len);
+        memset(bin, '\0', bin_max_len + 1);
+
+        sodium_hex2bin(bin, bin_max_len + 1, hex, hex_len, ignore, &bin_len, NULL);
+        RETVAL = newSVpvn((const char * const)bin, bin_max_len);
     OUTPUT:
         RETVAL
     CLEANUP:
-        sodium_free(bin);
+        if (bin != NULL) free(bin);
 
 MODULE = Crypt::NaCl::Sodium        PACKAGE = Crypt::NaCl::Sodium::secretbox
 
@@ -3802,6 +3854,7 @@ key(self, passphrase, salt, ... )
                     if ( outlen < 1 ) {
                         croak("Invalid bytes: %lld", outlen);
                     }
+                    outlen = outlen + 1;
                 } else {
                     croak("Invalid argument: %s", key);
                 }
@@ -3815,7 +3868,7 @@ key(self, passphrase, salt, ... )
 
         pwd_buf = (char *)SvPV(passphrase, pwd_len);
 
-        bl = InitDataBytesLocker(aTHX_ outlen);
+        bl = InitDataBytesLocker(aTHX_ outlen+1);
         if ( crypto_pwhash_scryptsalsa208sha256(bl->bytes, outlen, pwd_buf, pwd_len, salt_buf, opslimit, memlimit) != 0 ) {
             sodium_free( bl->bytes );
             Safefree(bl);

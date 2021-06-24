@@ -1,8 +1,6 @@
-
 use strict;
 use warnings;
 use Test::More;
-
 
 use Crypt::NaCl::Sodium qw(bin2hex);
 
@@ -16,14 +14,11 @@ ok($crypto_pwhash->$_ > 0, "$_ > 0")
     for qw( SALTBYTES STRBYTES OPSLIMIT_INTERACTIVE MEMLIMIT_INTERACTIVE OPSLIMIT_SENSITIVE MEMLIMIT_SENSITIVE );
 
 for my $password ( @passwords ) {
-    my ($key, $key_hex, $mac);
-
     my $salt = $crypto_pwhash->salt();
     ok($salt, "salt generated");
 
     my $pass_len = length($password);
     for my $key_len ( int($pass_len/2), $pass_len, 2*$pass_len ) {
-
         my $key = $crypto_pwhash->key( $password, $salt, bytes => $key_len );
         ok($key, "got key of $key_len bytes for password");
     }
@@ -38,4 +33,3 @@ for my $password ( @passwords ) {
 }
 
 done_testing();
-
