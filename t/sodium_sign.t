@@ -78,7 +78,7 @@ foreach my $test (@tests) {
         ok(1, "message $i is malleable");
     }
     else {
-        diag("Message $i is not malleable");
+        ok(1, "Message $i is not malleable");
         next;
     }
 
