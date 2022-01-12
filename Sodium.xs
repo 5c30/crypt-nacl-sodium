@@ -11,6 +11,10 @@
 /* libsodium */
 #include "sodium.h"
 
+#ifdef crypto_stream_aes128ctr_NONCEBYTES
+#define AES128CTR_IS_AVAILABLE 1
+#endif
+
 #define DUMP(v) do_sv_dump(0, Perl_debug_log, v, 0, 4, 0, 0);
 
 static int has_aes256gcm;
