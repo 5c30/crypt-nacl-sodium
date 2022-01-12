@@ -13,18 +13,18 @@
 
 #define DUMP(v) do_sv_dump(0, Perl_debug_log, v, 0, 4, 0, 0);
 
+static int has_aes256gcm;
+
 typedef struct {
     unsigned char * bytes;
     STRLEN length;
     int locked;
 } DataBytesLocker;
 
-#if defined(AES256GCM_IS_AVAILABLE)
 typedef struct {
     int locked;
     crypto_aead_aes256gcm_state * ctx;
 } CryptNaClSodiumAeadAes256gcmState;
-#endif
 
 typedef struct {
     crypto_generichash_state * state;
@@ -56,9 +56,7 @@ typedef struct {
 } CryptNaClSodiumOnetimeauthStream;
 
 typedef DataBytesLocker * Data__BytesLocker;
-#if defined(AES256GCM_IS_AVAILABLE)
 typedef CryptNaClSodiumAeadAes256gcmState * Crypt__NaCl__Sodium__aead__aes256gcmstate;
-#endif
 typedef CryptNaClSodiumGenerichashStream * Crypt__NaCl__Sodium__generichash__stream;
 typedef CryptNaClSodiumHashSha256Stream * Crypt__NaCl__Sodium__hash__sha256stream;
 typedef CryptNaClSodiumHashSha512Stream * Crypt__NaCl__Sodium__hash__sha512stream;
@@ -113,7 +111,6 @@ STATIC int dup_ ## statetype ## _stream(pTHX_ MAGIC *mg, CLONE_PARAMS *params)\
     return 0;\
 }
 
-#if defined(AES256GCM_IS_AVAILABLE)
 STATIC int dup_aead_aes256gcmstate(pTHX_ MAGIC *mg, CLONE_PARAMS *params)
 {
     CryptNaClSodiumAeadAes256gcmState *new_state;
@@ -135,7 +132,6 @@ STATIC int dup_aead_aes256gcmstate(pTHX_ MAGIC *mg, CLONE_PARAMS *params)
     mg->mg_ptr = (char *)new_state;
     return 0;
 }
-#endif
 
 DUPSTREAM(CryptNaClSodiumGenerichashStream, generichash, (size_t)63U & ~(size_t) 63U, new_stream->init_bytes=cur_stream->init_bytes)
 DUPSTREAM(CryptNaClSodiumHashSha256Stream, hash_sha256, 0, ((void)0))
@@ -163,7 +159,6 @@ STATIC MGVTBL vtbl_byteslocker = {
     NULL /* local */
 #endif
 };
-#if defined(AES256GCM_IS_AVAILABLE)
 STATIC MGVTBL vtbl_aead_aes256gcmstate = {
     NULL, /* get */ NULL, /* set */ NULL, /* len */ NULL, /* clear */ NULL, /* free */
 #ifdef MGf_COPY
@@ -180,7 +175,6 @@ STATIC MGVTBL vtbl_aead_aes256gcmstate = {
     NULL /* local */
 #endif
 };
-#endif
 STATIC MGVTBL vtbl_generichash = {
     NULL, /* get */ NULL, /* set */ NULL, /* len */ NULL, /* clear */ NULL, /* free */
 #ifdef MGf_COPY
@@ -370,7 +364,6 @@ static DataBytesLocker* GetBytesLocker(pTHX_ SV* sv)
     return (DataBytesLocker*)0; /* some compilers insist on a return value */
 }
 
-#if defined(AES256GCM_IS_AVAILABLE)
 static CryptNaClSodiumAeadAes256gcmState * InitAeadAes256gcmState(pTHX_ unsigned char * key) {
     CryptNaClSodiumAeadAes256gcmState *pk;
     Newx(pk, 1, CryptNaClSodiumAeadAes256gcmState);
@@ -441,7 +434,6 @@ static CryptNaClSodiumAeadAes256gcmState* GetAeadAes256gcmState(pTHX_ SV* sv)
     croak("Failed to get Crypt::NaCl::Sodium::aead::aes256gcmstate pointer");
     return (CryptNaClSodiumAeadAes256gcmState*)0; /* some compilers insist on a return value */
 }
-#endif
 
 static SV * GenerichashStream2SV(pTHX_ CryptNaClSodiumGenerichashStream *stream) {
     SV *sv = newSV(0);
@@ -725,6 +717,7 @@ BOOT:
     {
         croak("Failed to initialze library");
     }
+    has_aes256gcm = crypto_aead_aes256gcm_is_available();
 }
 
 PROTOTYPES: ENABLE
@@ -1879,33 +1872,27 @@ KEYBYTES(...)
 unsigned int
 AES256GCM_KEYBYTES(...)
     CODE:
-#if defined(AES256GCM_IS_AVAILABLE)
+        if (!has_aes256gcm)
+            croak("AES256-GCM is not supported by this CPU");
         RETVAL = crypto_aead_aes256gcm_KEYBYTES;
-#else
-        croak("AES256-GCM is not supported by this CPU");
-#endif
     OUTPUT:
         RETVAL
 
 unsigned int
 AES256GCM_NPUBBYTES(...)
     CODE:
-#if defined(AES256GCM_IS_AVAILABLE)
+        if (!has_aes256gcm)
+            croak("AES256-GCM is not supported by this CPU");
         RETVAL = crypto_aead_aes256gcm_NPUBBYTES;
-#else
-        croak("AES256-GCM is not supported by this CPU");
-#endif
     OUTPUT:
         RETVAL
 
 unsigned int
 AES256GCM_ABYTES(...)
     CODE:
-#if defined(AES256GCM_IS_AVAILABLE)
+        if (!has_aes256gcm)
+            croak("AES256-GCM is not supported by this CPU");
         RETVAL = crypto_aead_aes256gcm_ABYTES;
-#else
-        croak("AES256-GCM is not supported by this CPU");
-#endif
     OUTPUT:
         RETVAL
 
@@ -1937,7 +1924,7 @@ aes256gcm_is_available(self)
     SV * self
     PPCODE:
     {
-        if ( crypto_aead_aes256gcm_is_available() ) {
+        if ( has_aes256gcm ) {
             XSRETURN_YES;
         }
         XSRETURN_NO;
@@ -1957,11 +1944,9 @@ keygen(self)
 
         switch(ix) {
             case 1:
-#if defined(AES256GCM_IS_AVAILABLE)
+                if (!has_aes256gcm)
+                    croak("AES256-GCM is not supported by this CPU");
                 key_size = crypto_aead_aes256gcm_KEYBYTES;
-#else
-                croak("AES256-GCM is not supported by this CPU");
-#endif
                 break;
             default:
                 key_size = crypto_aead_chacha20poly1305_KEYBYTES;
@@ -1991,11 +1976,9 @@ nonce(self, ...)
                 nonce_size = crypto_aead_chacha20poly1305_IETF_NPUBBYTES;
                 break;
             case 2:
-#if defined(AES256GCM_IS_AVAILABLE)
+                if (!has_aes256gcm)
+                    croak("AES256-GCM is not supported by this CPU");
                 nonce_size = crypto_aead_aes256gcm_NPUBBYTES;
-#else
-                croak("AES256-GCM is not supported by this CPU");
-#endif
                 break;
             default:
                 nonce_size = crypto_aead_chacha20poly1305_NPUBBYTES;
@@ -2073,14 +2056,12 @@ encrypt(self, msg, adata, nonce, key)
                 encrypt_function = &crypto_aead_chacha20poly1305_ietf_encrypt;
                 break;
             case 2:
-#if defined(AES256GCM_IS_AVAILABLE)
+                if (!has_aes256gcm)
+                    croak("AES256-GCM is not supported by this CPU");
                 nonce_size = crypto_aead_aes256gcm_NPUBBYTES;
                 key_size = crypto_aead_aes256gcm_KEYBYTES;
                 adlen_size = crypto_aead_aes256gcm_ABYTES;
                 encrypt_function = &crypto_aead_aes256gcm_encrypt;
-#else
-                croak("AES256-GCM is not supported by this CPU");
-#endif
                 break;
             default:
                 nonce_size = crypto_aead_chacha20poly1305_NPUBBYTES;
@@ -2159,14 +2140,12 @@ decrypt(self, msg, adata, nonce, key)
                 decrypt_function = &crypto_aead_chacha20poly1305_ietf_decrypt;
                 break;
             case 2:
-#if defined(AES256GCM_IS_AVAILABLE)
+                if (!has_aes256gcm)
+                    croak("AES256-GCM is not supported by this CPU");
                 nonce_size = crypto_aead_aes256gcm_NPUBBYTES;
                 key_size = crypto_aead_aes256gcm_KEYBYTES;
                 adlen_size = crypto_aead_aes256gcm_ABYTES;
                 decrypt_function = &crypto_aead_aes256gcm_decrypt;
-#else
-                croak("AES256-GCM is not supported by this CPU");
-#endif
                 break;
             default:
                 nonce_size = crypto_aead_chacha20poly1305_NPUBBYTES;
@@ -2217,13 +2196,12 @@ aes256gcm_beforenm(self, key)
     INIT:
         STRLEN key_len = 0;
         unsigned char * key_buf = NULL;
-#if defined(AES256GCM_IS_AVAILABLE)
         CryptNaClSodiumAeadAes256gcmState *state;
-#endif
     PPCODE:
     {
         PERL_UNUSED_VAR(self);
-#if defined(AES256GCM_IS_AVAILABLE)
+        if (!has_aes256gcm)
+            croak("AES256-GCM is not supported by this CPU");
         key_buf = (unsigned char *)SvPV(key, key_len);
         if ( key_len != crypto_aead_aes256gcm_KEYBYTES ) {
             croak("Invalid key");
@@ -2234,9 +2212,6 @@ aes256gcm_beforenm(self, key)
         ST(0) = sv_2mortal(AeadAes256gcmState2SV(aTHX_ state));
 
         XSRETURN(1);
-#else
-        croak("AES256-GCM is not supported by this CPU");
-#endif
     }
 
 void
@@ -2255,14 +2230,13 @@ aes256gcm_encrypt_afternm(self, msg, adata, nonce, precalculated_key)
         unsigned char * msg_buf;
         unsigned char * adata_buf;
         unsigned char * nonce_buf;
-#if defined(AES256GCM_IS_AVAILABLE)
         CryptNaClSodiumAeadAes256gcmState * precal_key;
-#endif
         DataBytesLocker *bl;
     PPCODE:
     {
         PERL_UNUSED_VAR(self);
-#if defined(AES256GCM_IS_AVAILABLE)
+        if (!has_aes256gcm)
+            croak("AES256-GCM is not supported by this CPU");
 
         if ( GIMME_V == G_VOID ) {
             XSRETURN_EMPTY;
@@ -2295,9 +2269,6 @@ aes256gcm_encrypt_afternm(self, msg, adata, nonce, precalculated_key)
         mXPUSHs( DataBytesLocker2SV(aTHX_ bl) );
 
         XSRETURN(1);
-#else
-        croak("AES256-GCM is not supported by this CPU");
-#endif
     }
 
 void
@@ -2316,14 +2287,13 @@ aes256gcm_decrypt_afternm(self, msg, adata, nonce, precalculated_key)
         unsigned char * msg_buf;
         unsigned char * adata_buf;
         unsigned char * nonce_buf;
-#if defined(AES256GCM_IS_AVAILABLE)
         CryptNaClSodiumAeadAes256gcmState * precal_key;
-#endif
         DataBytesLocker *bl;
     PPCODE:
     {
         PERL_UNUSED_VAR(self);
-#if defined(AES256GCM_IS_AVAILABLE)
+        if (!has_aes256gcm)
+            croak("AES256-GCM is not supported by this CPU");
 
         if ( GIMME_V == G_VOID ) {
             XSRETURN_EMPTY;
@@ -2362,9 +2332,6 @@ aes256gcm_decrypt_afternm(self, msg, adata, nonce, precalculated_key)
             Safefree(bl);
             croak("Message forged");
         }
-#else
-        croak("AES256-GCM is not supported by this CPU");
-#endif
     }
 
 MODULE = Crypt::NaCl::Sodium        PACKAGE = Crypt::NaCl::Sodium::aead::aes256gcmstate
@@ -2375,7 +2342,8 @@ lock(self)
     PPCODE:
     {
         int rc;
-#if defined(AES256GCM_IS_AVAILABLE)
+        if (!has_aes256gcm)
+            croak("AES256-GCM is not supported by this CPU");
         CryptNaClSodiumAeadAes256gcmState* state;
 
         state = GetAeadAes256gcmState(aTHX_ self);
@@ -2388,9 +2356,6 @@ lock(self)
         }
 
         croak("Unable to lock memory: %s", Strerror(errno));
-#else
-        croak("AES256-GCM is not supported by this CPU");
-#endif
     }
 
 void
@@ -2399,7 +2364,8 @@ unlock(self)
     PPCODE:
     {
         int rc;
-#if defined(AES256GCM_IS_AVAILABLE)
+        if (!has_aes256gcm)
+            croak("AES256-GCM is not supported by this CPU");
         CryptNaClSodiumAeadAes256gcmState* state;
 
         state = GetAeadAes256gcmState(aTHX_ self);
@@ -2411,9 +2377,6 @@ unlock(self)
             XSRETURN_YES;
         }
         croak("Unable to unlock memory: %s", Strerror(errno));
-#else
-        croak("AES256-GCM is not supported by this CPU");
-#endif
     }
 
 void
@@ -2421,7 +2384,8 @@ is_locked(self, ...)
     SV * self
     PPCODE:
     {
-#if defined(AES256GCM_IS_AVAILABLE)
+        if (!has_aes256gcm)
+            croak("AES256-GCM is not supported by this CPU");
         CryptNaClSodiumAeadAes256gcmState* state;
 
         state = GetAeadAes256gcmState(aTHX_ self);
@@ -2430,9 +2394,6 @@ is_locked(self, ...)
         } else {
             XSRETURN_NO;
         }
-#else
-        croak("AES256-GCM is not supported by this CPU");
-#endif
     }
 
 void
@@ -2440,14 +2401,12 @@ DESTROY(self)
     SV * self
     PPCODE:
     {
-#if defined(AES256GCM_IS_AVAILABLE)
+        if (!has_aes256gcm)
+            croak("AES256-GCM is not supported by this CPU");
         CryptNaClSodiumAeadAes256gcmState* state;
         state = GetAeadAes256gcmState(aTHX_ self);
         sodium_free( state->ctx );
         Safefree(state);
-#else
-        croak("AES256-GCM is not supported by this CPU");
-#endif
     }
 
 
